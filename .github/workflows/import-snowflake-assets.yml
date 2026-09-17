@@ -14,9 +14,15 @@ jobs:
       - name: Checkout destination repo
         uses: actions/checkout@v4
 
-      - name: Clone Snowflake quickstarts
+      - name: Clone only selected Snowflake quickstarts
         run: |
-          git clone --depth 1 https://github.com/Snowflake-Labs/sfquickstarts.git source-repo
+          git clone --filter=blob:none --no-checkout https://github.com/Snowflake-Labs/sfquickstarts.git source-repo
+          cd source-repo
+          git sparse-checkout init --cone
+          git sparse-checkout set \
+            site/sfguides/src/accelerate-app-dev-cortex-code \
+            site/sfguides/src/from-zero-to-agents
+          git checkout master
 
       - name: Copy selected quickstarts
         run: |
