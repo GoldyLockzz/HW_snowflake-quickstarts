@@ -1,4 +1,4 @@
-name: Import Snowflake Cortex Assets
+name: Import Snowflake Quickstarts
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: write
 
 jobs:
-  import-assets:
+  import-quickstarts:
     runs-on: ubuntu-latest
 
     steps:
@@ -18,16 +18,39 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/Snowflake-Labs/sfquickstarts.git source-repo
 
-      - name: Copy Cortex Code assets
+      - name: Copy selected quickstarts
         run: |
-          mkdir -p assets
-          cp -r source-repo/site/sfguides/src/accelerate-app-dev-cortex-code/assets/. assets/
+          QUICKSTARTS=(
+            "accelerate-app-dev-cortex-code"
+            "from-zero-to-agents"
+          )
 
-      - name: Commit imported assets
+          SOURCE_ROOT="source-repo/site/sfguides/src"
+
+          for qs in "${QUICKSTARTS[@]}"; do
+            echo "Importing $qs..."
+
+            mkdir -p "$qs"
+
+            # Copy assets folder if it exists
+            if [ -d "$SOURCE_ROOT/$qs/assets" ]; then
+              rm -rf "$qs/assets"
+              cp -r "$SOURCE_ROOT/$qs/assets" "$qs/assets"
+            fi
+
+            # Copy the matching markdown guide
+            if [ -f "$SOURCE_ROOT/$qs/$qs.md" ]; then
+              cp "$SOURCE_ROOT/$qs/$qs.md" "$qs/$qs.md"
+            fi
+          done
+
+      - name: Commit imported quickstarts
         run: |
           rm -rf source-repo
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets
-          git commit -m "Import Cortex Code assets from Snowflake Labs" || echo "No changes to commit"
+
+          git add .
+          git commit -m "Sync Snowflake quickstarts" || echo "No changes to commit"
           git push
