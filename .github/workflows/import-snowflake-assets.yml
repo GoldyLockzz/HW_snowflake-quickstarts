@@ -1,3 +1,4 @@
+
 name: Import Snowflake Quickstarts
 
 on:
@@ -11,53 +12,73 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout destination repo
+      - name: Checkout my GitHub repository
         uses: actions/checkout@v4
 
-      - name: Clone only selected Snowflake quickstarts
+      - name: Import selected Snowflake projects
+        shell: bash
         run: |
-          git clone --filter=blob:none --no-checkout https://github.com/Snowflake-Labs/sfquickstarts.git source-repo
-          cd source-repo
-          git sparse-checkout init --cone
-          git sparse-checkout set \
-            site/sfguides/src/accelerate-app-dev-cortex-code \
-            site/sfguides/src/from-zero-to-agents
-          git checkout master
+          set -euo pipefail
 
-      - name: Copy selected quickstarts
-        run: |
+          # ==========================================
+          # EDIT ONLY THIS SECTION
+          # Add/remove Snowflake project folder names
+          # ==========================================
+
           QUICKSTARTS=(
             "accelerate-app-dev-cortex-code"
             "from-zero-to-agents"
-            "Compare and Evaluate Chunking Strategies"
+            "compare-and-evaluate-chunking-strategies"
           )
 
-          SOURCE_ROOT="source-repo/site/sfguides/src"
+          # ==========================================
+          # NO NEED TO EDIT BELOW
+          # ==========================================
+
+          git clone --depth 1 --filter=blob:none \
+            --sparse --branch master \
+            https://github.com/Snowflake-Labs/sfquickstarts.git \
+            /tmp/sfquickstarts
+
+          cd /tmp/sfquickstarts
+
+          PATHS=()
+          for qs in "${QUICKSTARTS[@]}"; do
+            PATHS+=("site/sfguides/src/$qs")
+          done
+
+          git sparse-checkout set "${PATHS[@]}"
+
+          cd "$GITHUB_WORKSPACE"
+
+          SOURCE_ROOT="/tmp/sfquickstarts/site/sfguides/src"
 
           for qs in "${QUICKSTARTS[@]}"; do
-            echo "Importing $qs..."
+            echo "Importing: $qs"
 
-            mkdir -p "$qs"
-
-            # Copy assets folder if it exists
-            if [ -d "$SOURCE_ROOT/$qs/assets" ]; then
-              rm -rf "$qs/assets"
-              cp -r "$SOURCE_ROOT/$qs/assets" "$qs/assets"
-            fi
-
-            # Copy the matching markdown guide
-            if [ -f "$SOURCE_ROOT/$qs/$qs.md" ]; then
-              cp "$SOURCE_ROOT/$qs/$qs.md" "$qs/$qs.md"
+            if [ ! -d "$SOURCE_ROOT/$qs" ]; then
+              echo "::error::Project not found: $qs"
+              exit 1
             fi
           done
 
-      - name: Commit imported quickstarts
+          for qs in "${QUICKSTARTS[@]}"; do
+            rm -rf -- "$qs"
+            cp -a -- "$SOURCE_ROOT/$qs" "$qs"
+            echo "Imported: $qs"
+          done
+
+      - name: Commit and push changes
         run: |
-          rm -rf source-repo
-
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add .
-          git commit -m "Sync Snowflake quickstarts" || echo "No changes to commit"
-          git push
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "Already up to date"
+          else
+            git commit -m "Sync selected Snowflake quickstarts"
+            git push
+          fi
