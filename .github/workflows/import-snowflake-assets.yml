@@ -29,6 +29,7 @@ jobs:
           QUICKSTARTS=(
             "accelerate-app-dev-cortex-code"
             "from-zero-to-agents"
+            "Compare and Evaluate Chunking Strategies"
           )
 
           SOURCE_ROOT="source-repo/site/sfguides/src"
